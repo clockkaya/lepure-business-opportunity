@@ -22,6 +22,10 @@ docker-compose.override.yml
 *.sqlite
 *.db
 dump.rdb
+.todo/
+.todo
+.kiro/
+.kiro
 
 # 2. IDE & Editor configurations
 .idea/
