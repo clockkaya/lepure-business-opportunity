@@ -1,0 +1,59 @@
+# ==========================================
+# Root .gitignore - Global Exclusions
+# ==========================================
+
+# 1. Environment Variables & Sensitive Information
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+*.keystore
+*.jks
+secrets.*
+auth.json
+docker-compose.override.yml
+*.sqlite3
+*.sqlite
+*.db
+dump.rdb
+
+# 2. IDE & Editor configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# 3. OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# 4. Global Logs
+*.log
+
+# 5. Common Dependencies & Caches (Fallback)
+node_modules/
+dist/
+build/
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+
+# Note: Sub-projects like wewe-rss and analysis-ollama have their own .gitignore 
+# files for project-specific exclusions. This file serves as a global safety net.

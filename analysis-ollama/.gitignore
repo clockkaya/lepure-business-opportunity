@@ -1,0 +1,16 @@
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+.env
+.env.dev
+.env.pre
+.idea/
+.vscode/
+
+# Test artifacts (auto-generated, do not commit)
+htmlcov/
+.coverage
+.hypothesis/
+.pytest_cache/
