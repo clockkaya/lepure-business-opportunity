@@ -1,21 +1,19 @@
 """
 Integration tests for end-to-end article processing flow.
 
-这些测试需要实际的服务运行（wewe-rss, MySQL, Ollama）。
-在 CI/CD 环境中，这些测试可能需要被标记为 @pytest.mark.integration 并单独运行。
+这些测试使用 mock 模拟外部服务。
 """
 import pytest
-import requests
 from unittest.mock import Mock, patch, MagicMock
 from app.models.article import Article
 from app.models.project import ExtractedProject
-from app.services.rss_service import RSSService
-from app.services.llm_service import LLMService
-from app.services.notification_service import NotificationService
-from app.utils.html_parser import clean_html
+from app.services.rss_fetcher import RSSFetcher
+from app.services.llm_analyzer import LLMAnalyzer
+from app.services.wecom_notifier import WecomNotifier
+from app.utils.html_cleaner import clean_html
 
 
-# 标记为集成测试（需要外部服务）
+# 标记为集成测试
 pytestmark = pytest.mark.integration
 
 
@@ -55,24 +53,24 @@ def mock_llm_response():
     }
 
 
-def test_rss_service_fetch_articles(mock_atom_response):
-    """测试 RSS 服务获取文章"""
+def test_rss_fetcher_fetch_articles(mock_atom_response):
+    """测试 RSS 采集器获取文章"""
     with patch('requests.get') as mock_get:
         mock_get.return_value.status_code = 200
         mock_get.return_value.text = mock_atom_response
         mock_get.return_value.content = mock_atom_response.encode('utf-8')
         mock_get.return_value.raise_for_status = Mock()
 
-        service = RSSService("http://localhost:4000", "test_auth")
-        articles = service.fetch_feed_articles("test_feed_id")
+        fetcher = RSSFetcher("http://localhost:4000", "test_auth")
+        articles = fetcher.fetch_feed_articles("test_feed_id")
 
         assert len(articles) > 0
         assert articles[0]['title'] == "测试文章标题"
         assert articles[0]['guid'] == "test-guid-123"
 
 
-def test_html_parser_clean_content():
-    """测试 HTML 解析器清洗内容"""
+def test_html_cleaner_clean_content():
+    """测试 HTML 清洗器清洗内容"""
     html = """
     <div class="rich_media_content">
         <p>这是测试文章的内容。</p>
@@ -89,25 +87,25 @@ def test_html_parser_clean_content():
     assert "alert" not in cleaned
 
 
-def test_llm_service_analyze_article(mock_llm_response):
-    """测试 LLM 服务分析文章"""
-    with patch('requests.post') as mock_post:
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "response": str(mock_llm_response)
-        }
-        mock_post.return_value = mock_response
+def test_llm_analyzer_analyze_article(mock_llm_response):
+    """测试 LLM 分析器分析文章"""
+    import json
+    with patch('ollama.Client.chat') as mock_chat:
+        mock_message = Mock()
+        mock_message.content = json.dumps(mock_llm_response)
+        mock_result = Mock()
+        mock_result.message = mock_message
+        mock_chat.return_value = mock_result
 
-        service = LLMService("http://localhost:11434", "test_model")
-        result = service.analyze_article("测试标题", "测试内容")
+        analyzer = LLMAnalyzer("deepseek-r1:32b")
+        result = analyzer.analyze_article("测试标题", "测试内容")
 
         # 允许返回 None（解析失败时）
         assert result is not None or result is None
 
 
-def test_notification_service_send_message():
-    """测试通知服务发送消息"""
+def test_wecom_notifier_send_message():
+    """测试通知器发送消息"""
     with patch('requests.post') as mock_post:
         mock_response = Mock()
         mock_response.status_code = 200
@@ -115,7 +113,7 @@ def test_notification_service_send_message():
         mock_response.raise_for_status = Mock()
         mock_post.return_value = mock_response
 
-        service = NotificationService("https://qyapi.weixin.qq.com/test")
+        notifier = WecomNotifier("https://qyapi.weixin.qq.com/test")
         project_data = {
             "company_name": "测试公司",
             "province": "广东省",
@@ -125,7 +123,7 @@ def test_notification_service_send_message():
             "summary": "测试摘要"
         }
 
-        result = service.send_wecom_message(
+        result = notifier.send_message(
             project_data,
             "测试文章",
             "https://example.com/test"
@@ -134,9 +132,9 @@ def test_notification_service_send_message():
         assert result is True
 
 
-@patch('app.services.rss_service.RSSService.fetch_feed_articles')
-@patch('app.services.llm_service.LLMService.analyze_article')
-@patch('app.services.notification_service.NotificationService.send_wecom_message')
+@patch('app.services.rss_fetcher.RSSFetcher.fetch_feed_articles')
+@patch('app.services.llm_analyzer.LLMAnalyzer.analyze_article')
+@patch('app.services.wecom_notifier.WecomNotifier.send_message')
 def test_end_to_end_article_processing(
     mock_notification,
     mock_llm,
@@ -144,16 +142,7 @@ def test_end_to_end_article_processing(
     test_session,
     mock_llm_response
 ):
-    """
-    测试完整的文章处理流程（使用 mock）
-
-    流程:
-    1. 从 RSS 获取文章
-    2. 清洗 HTML 内容
-    3. LLM 分析
-    4. 保存到数据库
-    5. 发送通知
-    """
+    """测试完整的文章处理流程（使用 mock）"""
     mock_rss.return_value = [{
         'title': '测试文章',
         'url': 'https://example.com/test',
@@ -167,8 +156,8 @@ def test_end_to_end_article_processing(
     mock_notification.return_value = True
 
     # 1. 获取文章
-    rss_service = RSSService("http://localhost:4000", "test_auth")
-    articles = rss_service.fetch_feed_articles("test_feed")
+    fetcher = RSSFetcher("http://localhost:4000", "test_auth")
+    articles = fetcher.fetch_feed_articles("test_feed")
     assert len(articles) == 1
 
     article_data = articles[0]
@@ -193,8 +182,8 @@ def test_end_to_end_article_processing(
     assert cleaned_content is not None
 
     # 5. LLM 分析
-    llm_service = LLMService("http://localhost:11434", "test_model")
-    project_data = llm_service.analyze_article(article.title, cleaned_content)
+    analyzer = LLMAnalyzer("deepseek-r1:32b")
+    project_data = analyzer.analyze_article(article.title, cleaned_content)
     assert project_data is not None
 
     # 6. 保存提取的项目信息
@@ -217,8 +206,8 @@ def test_end_to_end_article_processing(
 
     # 8. 发送通知
     if project_data.get('company_name'):
-        notification_service = NotificationService("https://qyapi.weixin.qq.com/test")
-        result = notification_service.send_wecom_message(
+        notifier = WecomNotifier("https://qyapi.weixin.qq.com/test")
+        result = notifier.send_message(
             project_data,
             article.title,
             article.url
@@ -265,11 +254,11 @@ def test_error_handling_in_processing(test_session):
     test_session.add(article)
     test_session.commit()
 
-    with patch('app.services.llm_service.LLMService.analyze_article') as mock_llm:
+    with patch('app.services.llm_analyzer.LLMAnalyzer.analyze_article') as mock_llm:
         mock_llm.return_value = None
 
-        llm_service = LLMService("http://localhost:11434", "test_model")
-        result = llm_service.analyze_article(article.title, "测试内容")
+        analyzer = LLMAnalyzer("deepseek-r1:32b")
+        result = analyzer.analyze_article(article.title, "测试内容")
 
         if result is None:
             article.update_status(test_session, 'error')

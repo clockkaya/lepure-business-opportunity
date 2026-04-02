@@ -9,10 +9,10 @@ import os
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app.utils.db_utils import get_session, init_database_with_retry
+from app.core.database import get_session, init_database_with_retry
 from app.models.article import Article
 from app.models.project import ExtractedProject
-from app.config.settings import settings
+from app.core.settings import settings
 from loguru import logger
 from sqlalchemy import func
 from sqlmodel import select

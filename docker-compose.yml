@@ -1,0 +1,103 @@
+version: '3.9'
+
+# ============================================================
+# Lepure Business Opportunity - 一体化部署
+# 包含三个服务：MySQL 数据库、WeWe-RSS、Analysis-Ollama
+# 启动顺序：db → app → agent
+# ============================================================
+
+services:
+
+  # ------------------------------------------------------------
+  # 数据库服务
+  # 端口 3308 避免与宿主机默认 3306 冲突
+  # 变量来源：根目录 .env（MYSQL_ROOT_PASSWORD）
+  # ------------------------------------------------------------
+  db:
+    image: mysql:8.0
+    container_name: opportunity-db
+    command: --default-authentication-plugin=caching_sha2_password --default-time-zone='+08:00'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
+      MYSQL_DATABASE: wewe-rss
+    ports:
+      - 3308:3306
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 45s
+      retries: 10
+    networks:
+      - opportunity-shared
+
+  # ------------------------------------------------------------
+  # WeWe-RSS 服务
+  # 依赖 db 健康后启动
+  # 变量来源：./wewe-rss/.env
+  # ------------------------------------------------------------
+  app:
+    build:
+      context: ./wewe-rss
+    image: lepure/wewe-rss:2.6.1
+    container_name: opportunity-app
+    ports:
+      - 4000:4000
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+    env_file:
+      - ./wewe-rss/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -O /dev/null http://127.0.0.1:4000 2>&1 && exit 0 || exit 1']
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - opportunity-shared
+
+  # ------------------------------------------------------------
+  # Analysis-Ollama 智能分析服务
+  # 依赖 db 健康 + app 启动后运行
+  # 变量来源：./analysis-ollama/.env.pre（切换环境改此文件）
+  # ------------------------------------------------------------
+  agent:
+    build:
+      context: ./analysis-ollama
+    image: lepure/analysis-ollama:0.0.1
+    container_name: opportunity-agent
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    env_file:
+      - ./analysis-ollama/.env.pre
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    networks:
+      - opportunity-shared
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+# ------------------------------------------------------------
+# 共享网络：所有服务通过服务名互相访问
+# 例如 agent 通过 db:3306 访问数据库，通过 app:4000 访问 WeWe-RSS
+# ------------------------------------------------------------
+networks:
+  opportunity-shared:
+    name: opportunity-shared
+
+volumes:
+  db_data:

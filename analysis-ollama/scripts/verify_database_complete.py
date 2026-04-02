@@ -6,8 +6,8 @@ Task 13.1.6: 验证数据库记录正确
 """
 import sys
 import json
-from app.utils.db_utils import create_db_engine
-from app.config.settings import settings
+from app.core.database import create_db_engine
+from app.core.settings import settings
 from sqlmodel import Session, select, func
 from sqlalchemy import inspect, text
 from app.models.article import Article

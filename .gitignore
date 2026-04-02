@@ -5,6 +5,8 @@
 # 1. Environment Variables & Sensitive Information
 .env
 .env.*
+.env.dev
+.env.pre
 !.env.example
 !.env.template
 *.pem

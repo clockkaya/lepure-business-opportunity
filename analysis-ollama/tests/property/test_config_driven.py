@@ -1,12 +1,5 @@
 """
 Property-based tests for configuration-driven behavior.
-
-Feature: environment-separation-architecture
-Property 1: 配置驱动的环境行为
-
-对于任何有效的环境配置（dev 或 pre），当应用使用该配置启动时，
-应用的行为（数据库连接地址、API 端点）应该与配置中指定的值一致，
-而无需修改代码。
 """
 import os
 from unittest.mock import patch
@@ -24,7 +17,7 @@ def _make_env(overrides: dict) -> dict:
         'DB_NAME': 'test_db',
         'WEWE_RSS_URL': 'http://localhost:4000',
         'AUTH_CODE': 'test_auth',
-        'OLLAMA_BASE_URL': 'http://localhost:11434',
+
         'MODEL_NAME': 'test_model',
         'WECOM_WEBHOOK_URL': 'https://qyapi.weixin.qq.com/test',
         'LOG_LEVEL': 'INFO',
@@ -42,14 +35,10 @@ def _make_env(overrides: dict) -> dict:
 )
 @settings(max_examples=50)
 def test_property_config_driven_behavior(env, db_host, db_port):
-    """
-    Feature: environment-separation-architecture, Property 1: 配置驱动的环境行为
-
-    对于任何有效的环境配置，应用行为应与配置一致
-    """
+    """配置驱动的环境行为"""
     env_vars = _make_env({'ENV': env, 'DB_HOST': db_host, 'DB_PORT': str(db_port)})
     with patch.dict(os.environ, env_vars, clear=True):
-        from app.config.settings import Settings
+        from app.core.settings import Settings
         config = Settings()
 
         assert config.ENV == env
@@ -65,14 +54,10 @@ def test_property_config_driven_behavior(env, db_host, db_port):
 )
 @settings(max_examples=50)
 def test_property_wewe_rss_config(wewe_rss_url, auth_code):
-    """
-    Feature: environment-separation-architecture, Property 1: 配置驱动的环境行为
-
-    WeWe-RSS 配置应该从环境变量正确加载
-    """
+    """WeWe-RSS 配置应该从环境变量正确加载"""
     env_vars = _make_env({'WEWE_RSS_URL': wewe_rss_url, 'AUTH_CODE': auth_code})
     with patch.dict(os.environ, env_vars, clear=True):
-        from app.config.settings import Settings
+        from app.core.settings import Settings
         config = Settings()
 
         assert config.WEWE_RSS_URL == wewe_rss_url.strip()
@@ -84,14 +69,10 @@ def test_property_wewe_rss_config(wewe_rss_url, auth_code):
 )
 @settings(max_examples=20)
 def test_property_log_level_config(log_level):
-    """
-    Feature: environment-separation-architecture, Property 1: 配置驱动的环境行为
-
-    日志级别应该从环境变量正确加载并验证
-    """
+    """日志级别应该从环境变量正确加载并验证"""
     env_vars = _make_env({'LOG_LEVEL': log_level})
     with patch.dict(os.environ, env_vars, clear=True):
-        from app.config.settings import Settings
+        from app.core.settings import Settings
         config = Settings()
 
         assert config.LOG_LEVEL == log_level.upper()
@@ -104,11 +85,12 @@ def test_property_log_level_config(log_level):
 )
 @settings(max_examples=50)
 def test_property_database_url_generation(db_name):
-    """
-    Feature: environment-separation-architecture, Property 1: 配置驱动的环境行为
+    """数据库 URL 应该根据配置正确生成"""
+    # 过滤掉包含连字符的名称（新的 DB_NAME 验证只允许字母数字下划线）
+    import re
+    if not re.match(r'^[a-zA-Z0-9_]+$', db_name.strip()):
+        return
 
-    数据库 URL 应该根据配置正确生成
-    """
     db_user = 'test_user'
     db_password = 'test_pass'
     db_host = '127.0.0.1'
@@ -122,7 +104,7 @@ def test_property_database_url_generation(db_name):
         'DB_PORT': str(db_port),
     })
     with patch.dict(os.environ, env_vars, clear=True):
-        from app.config.settings import Settings
+        from app.core.settings import Settings
         config = Settings()
 
         expected_url = (

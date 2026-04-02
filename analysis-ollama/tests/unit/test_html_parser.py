@@ -1,8 +1,8 @@
 """
-Unit tests for HTML parser module.
+Unit tests for HTML cleaner module.
 """
 import pytest
-from app.utils.html_parser import clean_html
+from app.utils.html_cleaner import clean_html
 
 
 def test_clean_html_basic():
@@ -72,8 +72,6 @@ def test_clean_html_with_rich_media_content():
     text = clean_html(html)
     assert "这是文章的核心内容" in text
     assert "第二段内容" in text
-    # Header and footer should not be included when rich_media_content is found
-    # But our implementation might include them, so we just check core content is there
 
 
 def test_clean_html_preserves_line_breaks():
@@ -83,7 +81,6 @@ def test_clean_html_preserves_line_breaks():
     assert "第一段" in text
     assert "第二段" in text
     assert "第三段" in text
-    # Check that lines are separated
     lines = [line for line in text.split('\n') if line.strip()]
     assert len(lines) >= 3
 
@@ -105,7 +102,6 @@ def test_clean_html_handles_html_entities():
     assert "Hello" in text
     assert "World" in text
     assert "Test" in text
-    # BeautifulSoup automatically decodes HTML entities
 
 
 def test_clean_html_complex_structure():
@@ -139,4 +135,3 @@ def test_clean_html_malformed_html():
     text = clean_html(html)
     assert "Unclosed paragraph" in text
     assert "Nested without closing" in text
-    # BeautifulSoup should handle malformed HTML gracefully

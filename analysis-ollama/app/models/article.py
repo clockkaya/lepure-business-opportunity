@@ -6,7 +6,7 @@
 from sqlmodel import Field, SQLModel, Column, Session, select
 from sqlalchemy import Text
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Article(SQLModel, table=True):
@@ -24,7 +24,7 @@ class Article(SQLModel, table=True):
     guid: str = Field(max_length=512, unique=True, index=True, description='文章唯一标识')
     feed_id: Optional[str] = Field(default=None, max_length=100, description='来源 feed ID，用于多公众号扩展')
     published_at: Optional[datetime] = Field(default=None, description='发布时间')
-    fetched_at: datetime = Field(default_factory=datetime.utcnow, description='抓取时间')
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description='抓取时间')
     status: str = Field(default='pending', max_length=50, description='处理状态: pending, processed, error')
     summary: Optional[str] = Field(default=None, sa_column=Column(Text), description='文章摘要')
     

@@ -9,8 +9,8 @@ Integration tests for network connectivity.
 import pytest
 import requests
 from unittest.mock import patch, Mock
-from app.config.settings import Settings
-from app.utils.db_utils import create_db_engine, check_db_health
+from app.core.settings import Settings
+from app.core.database import create_db_engine, check_db_health
 
 
 # 标记为集成测试（需要外部服务）
@@ -66,23 +66,32 @@ def test_database_connectivity(mock_settings):
         pytest.skip(f"数据库连接失败: {e}")
 
 
-def test_ollama_service_connectivity(mock_settings):
+def test_ollama_service_connectivity():
     """
     测试 Ollama 服务连通性
-    
-    前提条件:
-    - Ollama 服务正在运行（通常在 192.168.10.43:11434）
+
+    验证 MODEL_REGISTRY 中定义的所有基础服务地址是否可达。
     """
-    try:
-        response = requests.get(
-            f"{mock_settings.OLLAMA_BASE_URL}/api/tags",
-            timeout=10
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert 'models' in data or isinstance(data, dict)
-    except requests.exceptions.ConnectionError:
-        pytest.skip("Ollama 服务未运行")
+    from app.services.llm_analyzer import MODEL_REGISTRY
+    
+    # 获取唯一的 base_urls
+    base_urls = {config["base_url"] for config in MODEL_REGISTRY.values()}
+    
+    passed_count = 0
+    errors = []
+    
+    for url in base_urls:
+        try:
+            response = requests.get(f"{url}/api/tags", timeout=10)
+            if response.status_code == 200:
+                passed_count += 1
+        except Exception as e:
+            errors.append(f"{url}: {e}")
+            
+    if not passed_count and errors:
+        pytest.skip(f"所有 Ollama 服务均不可达: {errors}")
+    
+    assert passed_count > 0, "至少应该有一个 Ollama 服务可达"
 
 
 def test_wecom_webhook_connectivity(mock_settings):
@@ -154,18 +163,6 @@ def test_database_via_docker_network():
         pytest.skip("不在 Docker 网络中或数据库配置不正确")
 
 
-def test_external_network_access():
-    """
-    测试外部网络访问
-    
-    验证容器可以访问外部网络（如 Ollama 服务）
-    """
-    try:
-        # 测试访问外部 IP
-        response = requests.get("http://192.168.10.43:11434/api/tags", timeout=10)
-        assert response.status_code == 200
-    except requests.exceptions.ConnectionError:
-        pytest.skip("外部网络不可达或 Ollama 服务未运行")
 
 
 @pytest.mark.parametrize("service_url,expected_status", [

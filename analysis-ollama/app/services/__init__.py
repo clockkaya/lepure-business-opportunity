@@ -1,6 +1,6 @@
-# 业务逻辑层
-from .rss_service import RSSService
-from .llm_service import LLMService
-from .notification_service import NotificationService
+# 业务服务层
+from .rss_fetcher import RSSFetcher
+from .llm_analyzer import LLMAnalyzer
+from .wecom_notifier import WecomNotifier
 
-__all__ = ['RSSService', 'LLMService', 'NotificationService']
+__all__ = ['RSSFetcher', 'LLMAnalyzer', 'WecomNotifier']

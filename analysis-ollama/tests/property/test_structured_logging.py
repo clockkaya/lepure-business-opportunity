@@ -14,7 +14,7 @@ from io import StringIO
 
 from hypothesis import given, strategies as st, settings
 
-from app.utils.logger import get_logger
+from app.core.logging import get_logger
 
 
 def _capture_log(fn):

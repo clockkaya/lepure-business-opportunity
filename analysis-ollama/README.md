@@ -58,22 +58,16 @@ powershell scripts/start-dev.ps1           # Windows
 
 ### 预发布/生产环境（Pre）
 
-Pre 环境使用 Docker 容器运行。
+Pre 环境使用 Docker 容器运行。在根目录下使用一体化 `docker-compose.yml` 启动。
 
 ```bash
-# 1. 编辑 .env.pre，填入实际配置值
+# 1. 在根目录配置 .env.pre（由 analysis-ollama/.env.example 复制而来）
 
-# 2. 构建镜像（可选，也可直接拉取）
-docker build -t analysis-ollama:latest .
+# 2. 启动服务（在根目录）
+docker-compose up -d agent
 
-# 3. 启动服务
-docker-compose up -d
-
-# 4. 查看日志
-docker-compose logs -f
-
-# 5. 导出镜像（可选）
-docker save analysis-ollama:latest | gzip > analysis-ollama-latest.tar.gz
+# 3. 查看日志
+docker-compose logs -f agent
 ```
 
 ---
@@ -175,10 +169,11 @@ docker save analysis-ollama:latest | gzip > analysis-ollama-latest.tar.gz
 
 | 层级 | 目录 | 职责 |
 |------|------|------|
-| 配置层 | `config/` | 环境变量管理与验证 |
-| 数据模型层 | `models/` | SQLModel ORM 模型定义 |
-| 业务逻辑层 | `services/` | RSS 采集、LLM 分析、通知发送 |
-| 工具层 | `utils/` | 日志、HTML 解析、数据库连接池、健康检查 |
+| 配置层 | `app/core/settings.py` | 环境变量管理与验证 |
+| 数据模型层 | `app/models/` | SQLModel ORM 模型定义 |
+| 业务逻辑层 | `app/services/` | RSS 采集、LLM 分析、通知发送 |
+| 协调层 | `app/services/processor.py` | 文章处理编排 |
+| 工具层 | `app/utils/` | 日志、HTML 解析、数据库连接池、健康检查 |
 
 ---
 
@@ -186,47 +181,32 @@ docker save analysis-ollama:latest | gzip > analysis-ollama-latest.tar.gz
 
 ```
 analysis-ollama/
-├── app/                          # 应用代码
+├── app/                          # 应用核心代码
 │   ├── main.py                   # 程序入口
-│   ├── config/
-│   │   └── settings.py           # 环境变量配置与验证
+│   ├── core/
+│   │   ├── settings.py           # 统一配置中心
+│   │   ├── database.py           # 数据库引擎与 Session
+│   │   ├── logging.py            # 结构化日志配置
+│   │   └── health_checker.py     # 依赖项健康检查
 │   ├── models/
-│   │   ├── article.py            # Article 模型
-│   │   ├── project.py            # ExtractedProject 模型
-│   │   └── feed_config.py        # FeedConfig 模型（预留扩展）
+│   │   ├── article.py            # 文章表模型
+│   │   └── project.py            # 提取项目模型
 │   ├── services/
-│   │   ├── rss_service.py        # RSS 采集服务
-│   │   ├── llm_service.py        # LLM 分析服务
-│   │   ├── notification_service.py # 通知服务
-│   │   └── article_processor.py  # 文章处理编排
+│   │   ├── rss_fetcher.py        # RSS 抓取服务
+│   │   ├── llm_analyzer.py       # LLM 核心分析服务
+│   │   ├── wecom_notifier.py     # 企业微信通知服务
+│   │   └── processor.py          # 业务流程控制器
 │   └── utils/
-│       ├── logger.py             # 日志配置
-│       ├── html_parser.py        # HTML 清洗
-│       ├── db_utils.py           # 数据库连接池管理
-│       └── health_check.py       # 健康检查
-├── tests/
-│   ├── conftest.py               # Pytest 配置
+│       └── html_cleaner.py       # HTML 正文清洗
+├── tests/                        # 完整测试套件
 │   ├── unit/                     # 单元测试
-│   ├── property/                 # 属性测试（Hypothesis）
+│   ├── property/                 # 基于属性的测试
 │   └── integration/              # 集成测试
-├── scripts/
-│   ├── init_db.sql               # 数据库初始化 SQL
-│   ├── init_database.py          # 数据库初始化工具
-│   ├── check_database.py         # 数据库检查工具
-│   ├── verify_database_complete.py  # 完整数据库验证
-│   ├── verify_complete_workflow.py  # 端到端工作流验证
-│   ├── verify_network_connectivity.py # 网络连通性检查
-│   ├── verify_notifications.py   # 企业微信通知验证
-│   ├── start-dev.sh / start-dev.ps1  # 开发环境启动脚本
-│   ├── start-pre.sh              # 预发布环境启动脚本
-│   └── run_tests.sh / run_tests.ps1  # 测试运行脚本
-├── .env.dev                      # 开发环境配置（不提交 Git）
-├── .env.pre                      # 预发布环境配置（不提交 Git）
-├── Dockerfile                    # 容器镜像定义（Pre 环境）
-├── docker-compose.yml            # Pre 环境部署配置
-├── pytest.ini                    # Pytest 配置
-├── requirements.txt              # 生产依赖
-├── requirements-dev.txt          # 开发依赖
+├── scripts/                      # 运维与开发工具脚本
+├── .env.example                  # 环境变量模板
+├── Dockerfile                    # 生产镜像构建文件
+├── docker-compose.yml            # 本地容器运行配置
+├── requirements.txt              # 运行依赖
 └── README.md                     # 本文件
 ```
 

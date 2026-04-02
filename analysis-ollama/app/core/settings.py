@@ -5,6 +5,7 @@
 """
 import sys
 import os
+import re
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
@@ -14,7 +15,7 @@ from pydantic_settings import BaseSettings
 # 根据 ENV 环境变量加载对应的配置文件
 # 默认为 dev 环境
 env = os.getenv('ENV', 'dev')
-# 从 app/config/settings.py 向上两级到项目根目录
+# 从 app/core/settings.py 向上两级到项目根目录
 project_root = Path(__file__).parent.parent.parent
 env_file = project_root / f'.env.{env}'
 
@@ -25,36 +26,38 @@ else:
     print(f"警告: 配置文件 {env_file} 不存在，将使用环境变量")
     load_dotenv()  # 尝试加载默认的 .env 文件
 
+
 class Settings(BaseSettings):
     """
     应用配置类
-    
+
     从环境变量加载配置并进行验证
     """
     # 应用设置
     ENV: str = "dev"
-    POLL_INTERVAL_MINUTES: int = 60  # 轮询间隔（分钟），仅在未配置 CRON_SCHEDULE 时使用
-    CRON_SCHEDULE: Optional[str] = None  # Cron 定时任务，例如 "10:30,14:30" 表示每天 10:30 和 14:30 执行
-    RSS_FETCH_LIMIT: int = 100  # RSS API 每次获取的文章数量限制
+    POLL_INTERVAL_MINUTES: int = 60
+    CRON_SCHEDULE: Optional[str] = None
+    RSS_FETCH_LIMIT: int = 100
+    RSS_FETCH_TIMEOUT: int = 120   # 单次 HTTP 请求超时秒数，默认 120 秒
+    RSS_FETCH_BATCH_SIZE: int = 20  # 每批次请求的文章数量，默认 20 篇
 
     # WeWe-RSS 源
     WEWE_RSS_URL: str
     AUTH_CODE: str
-    
+
     # 数据库
     DB_HOST: str
     DB_PORT: int
     DB_USER: str
     DB_PASSWORD: str
     DB_NAME: str = "analysis_ollama"
-    
-    # AI 引擎
-    OLLAMA_BASE_URL: str
-    MODEL_NAME: str
-    
+
+    # AI 引擎（base_url 由 MODEL_REGISTRY 管理）
+    MODEL_NAME: str = "deepseek-r1:32b"
+
     # 通知
     WECOM_WEBHOOK_URL: str = ""
-    
+
     # 日志
     LOG_LEVEL: str = "INFO"
 
@@ -98,27 +101,27 @@ class Settings(BaseSettings):
             raise ValueError("DB_PASSWORD 是必需的。请在 .env 文件中设置（例如：DB_PASSWORD=your_password）")
         return v.strip()
 
-    @field_validator("OLLAMA_BASE_URL")
+    @field_validator("DB_NAME")
     @classmethod
-    def validate_ollama_base_url(cls, v: str) -> str:
-        """验证 Ollama 服务地址"""
-        if not v or not v.strip():
-            raise ValueError("OLLAMA_BASE_URL 是必需的。请在 .env 文件中设置（例如：OLLAMA_BASE_URL=http://192.168.10.43:11434）")
-        return v.strip()
+    def validate_db_name(cls, v: str) -> str:
+        """验证数据库名称（仅允许字母、数字和下划线）"""
+        v = v.strip()
+        if not re.match(r'^[a-zA-Z0-9_]+$', v):
+            raise ValueError(f"DB_NAME 只允许字母、数字和下划线，得到: {v}")
+        return v
 
     @field_validator("MODEL_NAME")
     @classmethod
     def validate_model_name(cls, v: str) -> str:
         """验证模型名称"""
         if not v or not v.strip():
-            raise ValueError("MODEL_NAME 是必需的。请在 .env 文件中设置（例如：MODEL_NAME=deepseek-r1:32b）")
+            return "deepseek-r1:32b"  # 默认值
         return v.strip()
 
     @field_validator("WECOM_WEBHOOK_URL")
     @classmethod
     def validate_wecom_webhook_url(cls, v: str) -> str:
         """验证企业微信 Webhook URL（可选）"""
-        # 允许为空，跳过企业微信通知
         if not v or not v.strip() or v.strip() == "placeholder":
             return ""
         return v.strip()
@@ -142,10 +145,10 @@ class Settings(BaseSettings):
 def load_settings() -> Settings:
     """
     从环境变量加载并验证配置
-    
+
     Returns:
         Settings: 验证后的配置对象
-        
+
     Raises:
         SystemExit: 如果配置验证失败
     """
@@ -156,13 +159,13 @@ def load_settings() -> Settings:
         print("配置错误：缺少或无效的必需环境变量")
         print("=" * 80)
         print()
-        
+
         for error in e.errors():
             field = ".".join(str(loc) for loc in error["loc"])
             message = error["msg"]
             print(f"❌ {field}: {message}")
             print()
-        
+
         print("=" * 80)
         print("请检查您的 .env 文件，确保所有必需的变量都已设置。")
         print("参考 .env.example 获取完整的必需变量列表。")

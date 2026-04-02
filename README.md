@@ -12,12 +12,14 @@ CGT 行业发展迅速，新客户与项目层出不穷。人工收集信息效�
 
 ## 整体架构
 
-本仓库包含两个子项目，协同工作：
+本仓库采用一体化部署方案，通过根目录的 `docker-compose.yml` 协同工作：
 
 ```
 lepure-business-opportunity/
-├── wewe-rss/           # 微信公众号 RSS 订阅服务（NestJS + React）
-└── analysis-ollama/    # 文章分析与通知服务（Python + Ollama LLM）
+├── docker-compose.yml  # 一体化部署配置文件
+├── .env                # 根目录环境变量（数据库 root 密码等）
+├── wewe-rss/           # 微信公众号 RSS 订阅服务
+└── analysis-ollama/    # 文章分析与通知服务（Python 3.10+）
 ```
 
 ### 数据流
@@ -26,39 +28,17 @@ lepure-business-opportunity/
 微信公众号
     │
     ▼
-wewe-rss（RSS 订阅 + Web UI）
-    │  HTTP API / RSS Feed
+wewe-rss（订阅服务）
+    │  HTTP API
     ▼
-analysis-ollama（定时采集 → LLM 分析 → 结构化存储）
+analysis-ollama（采集 → AI 分析 → 存储）
     │
     ▼
-MySQL 数据库（analysis_articles + analysis_extracted_projects）
+MySQL (opportunity-db)
     │
     ▼
-企业微信群（Webhook 推送情报报告）
+企业微信（Webhook 通知）
 ```
-
----
-
-## 子项目说明
-
-### wewe-rss
-
-开源微信公众号转 RSS 工具，负责订阅公众号并提供文章 API。
-
-- 技术栈：NestJS + React + MySQL
-- 端口：4000
-- 部署方式：Docker Compose
-
-### analysis-ollama
-
-核心分析服务，负责从 wewe-rss 拉取文章、调用本地 Ollama LLM 提取结构化信息并推送通知。
-
-- 技术栈：Python 3.10+ + SQLAlchemy + SQLModel + Loguru
-- LLM：Ollama（默认模型 `deepseek-r1:32b`，部署于 `192.168.10.43:11434`）
-- 部署方式：Dev 环境直接运行 Python；Pre/生产环境使用 Docker
-
-详细文档见 [analysis-ollama/README.md](analysis-ollama/README.md)。
 
 ---
 
@@ -67,39 +47,38 @@ MySQL 数据库（analysis_articles + analysis_extracted_projects）
 ### 前置条件
 
 - Docker & Docker Compose
-- Ollama 服务（本地或局域网）
-- 企业微信 Webhook URL（可选）
+- Ollama 服务（建议部署在独立宿主机，默认地址 `192.168.10.43:11434`）
 
-### 1. 启动 wewe-rss
+### 1. 环境配置
+
+复制并编辑各项目的环境变量文件：
 
 ```bash
-cd wewe-rss
+# 根目录 (数据库配置)
+cp .env.example .env
+
+# wewe-rss (RSS 配置)
+cp wewe-rss/.env.example wewe-rss/.env
+
+# analysis-ollama (AI 与通知配置)
+cp analysis-ollama/.env.example analysis-ollama/.env.pre
+```
+
+### 2. 启动服务（一体化部署）
+
+在根目录下运行：
+
+```bash
 docker-compose up -d
 ```
 
-访问 `http://localhost:4000`，完成微信登录并订阅目标公众号（如医麦客、细胞与基因治疗前沿等）。
+启动顺序：`db` (MySQL) → `app` (wewe-rss) → `agent` (analysis-ollama)。
 
-### 2. 启动 analysis-ollama（开发环境）
+### 3. 验证
 
-```bash
-cd analysis-ollama
-python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # Linux/Mac
-
-pip install -r requirements.txt
-
-# 编辑 .env.dev 填入实际配置
-$env:ENV="dev"; python -m app.main
-```
-
-### 3. 启动 analysis-ollama（生产环境）
-
-```bash
-cd analysis-ollama
-# 编辑 .env.pre 填入实际配置
-docker-compose up -d
-```
+- **WeWe-RSS**: 访问 `http://localhost:4000`
+- **数据库**: 宿主机通过 `localhost:3308` 访问
+- **日志**: `docker-compose logs -f agent` 查看分析进度
 
 ---
 

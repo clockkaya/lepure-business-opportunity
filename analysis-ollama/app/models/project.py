@@ -6,7 +6,7 @@
 from sqlmodel import Field, SQLModel, Column, Session, select
 from sqlalchemy import JSON
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class ExtractedProject(SQLModel, table=True):
@@ -28,7 +28,7 @@ class ExtractedProject(SQLModel, table=True):
     project_name: Optional[str] = Field(default=None, max_length=255, description='项目名称')
     project_stage: Optional[str] = Field(default=None, max_length=100, description='项目阶段')
     raw_json: Optional[dict] = Field(default=None, sa_column=Column(JSON), description='原始 JSON 数据')
-    created_at: datetime = Field(default_factory=datetime.utcnow, description='创建时间')
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description='创建时间')
     
     # ========================================================================
     # 查询方法（类方法）

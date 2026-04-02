@@ -16,13 +16,13 @@ import os
 sys.path.insert(0, '/app')
 
 from loguru import logger
-from app.utils.logger import setup_logging
-from app.utils.db_utils import init_database_with_retry, get_session
-from app.services.article_processor import ArticleProcessor
-from app.services.rss_service import RSSService
-from app.services.llm_service import LLMService
-from app.services.notification_service import NotificationService
-from app.config.settings import settings
+from app.core.logging import setup_logging
+from app.core.database import init_database_with_retry, get_session
+from app.services.processor import ArticleProcessor
+from app.services.rss_fetcher import RSSFetcher
+from app.services.llm_analyzer import LLMAnalyzer
+from app.services.wecom_notifier import WecomNotifier
+from app.core.settings import settings
 
 def main():
     """主验证函数"""
@@ -38,7 +38,7 @@ def main():
     print(f"  环境: {settings.ENV}")
     print(f"  数据库: {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
     print(f"  WeWe-RSS: {settings.WEWE_RSS_URL}")
-    print(f"  Ollama: {settings.OLLAMA_BASE_URL}")
+    print(f"  默认模型: {settings.MODEL_NAME}")
     print(f"  Cron 调度: {settings.CRON_SCHEDULE}")
     
     # 步骤 1: 初始化数据库
@@ -60,10 +60,14 @@ def main():
     # 步骤 2: 初始化服务
     print("\n[步骤 2/6] 初始化服务...")
     try:
-        rss_service = RSSService(settings.WEWE_RSS_URL, settings.AUTH_CODE)
-        llm_service = LLMService(settings.OLLAMA_BASE_URL, settings.MODEL_NAME)
-        notification_service = NotificationService(settings.WECOM_WEBHOOK_URL)
-        processor = ArticleProcessor(rss_service, llm_service, notification_service)
+        rss_fetcher = RSSFetcher(
+            settings.WEWE_RSS_URL, settings.AUTH_CODE,
+            timeout=settings.RSS_FETCH_TIMEOUT,
+            batch_size=settings.RSS_FETCH_BATCH_SIZE,
+        )
+        llm_analyzer = LLMAnalyzer(default_model=settings.MODEL_NAME)
+        wecom_notifier = WecomNotifier(settings.WECOM_WEBHOOK_URL)
+        processor = ArticleProcessor(rss_fetcher, llm_analyzer, wecom_notifier)
         print("✓ 服务初始化成功")
     except Exception as e:
         print(f"✗ 服务初始化失败: {e}")
@@ -72,7 +76,7 @@ def main():
     # 步骤 3: 获取 RSS 文章
     print("\n[步骤 3/6] 从 WeWe-RSS 获取文章...")
     try:
-        articles = rss_service.fetch_feed_articles()
+        articles = rss_fetcher.fetch_feed_articles()
         print(f"✓ 成功获取 {len(articles)} 篇文章")
         if articles:
             print(f"  示例文章: {articles[0]['title'][:50]}...")
@@ -86,9 +90,9 @@ def main():
     print("\n[步骤 4/6] 测试 HTML 内容解析...")
     if articles:
         try:
-            from app.utils.html_parser import extract_text_from_html
+            from app.utils.html_cleaner import clean_html
             sample_article = articles[0]
-            text_content = extract_text_from_html(sample_article['content'])
+            text_content = clean_html(sample_article['content'])
             print(f"✓ HTML 解析成功")
             print(f"  提取文本长度: {len(text_content)} 字符")
             print(f"  文本预览: {text_content[:100]}...")
@@ -103,7 +107,7 @@ def main():
     if articles:
         try:
             sample_article = articles[0]
-            analysis_result = llm_service.analyze_article(
+            analysis_result = llm_analyzer.analyze_article(
                 sample_article['title'],
                 sample_article['content']
             )

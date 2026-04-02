@@ -3,7 +3,7 @@ Unit tests for database utilities.
 """
 import pytest
 from unittest.mock import patch, MagicMock
-from app.utils.db_utils import (
+from app.core.database import (
     check_db_health,
     get_pool_status
 )
@@ -49,10 +49,9 @@ def test_get_pool_status():
 
 def test_create_db_engine_config():
     """测试 create_db_engine 使用正确的 MySQL 参数"""
-    # 通过 patch create_engine 并跳过 event 注册来验证参数
-    with patch('app.utils.db_utils.create_engine') as mock_create, \
-         patch('app.utils.db_utils.event.listens_for'):
-        from app.utils.db_utils import create_db_engine
+    with patch('app.core.database.create_engine') as mock_create, \
+         patch('app.core.database.event.listens_for'):
+        from app.core.database import create_db_engine
         mock_create.return_value = MagicMock()
 
         create_db_engine("mysql+pymysql://user:pass@127.0.0.1:3306/db", echo=False)

@@ -15,8 +15,6 @@ def test_db_url():
     """
     Provide test database URL.
     Uses SQLite in-memory for fast, isolated unit/integration tests.
-    Production uses MySQL — MySQL-specific behavior is verified manually
-    and via the integration tests that connect to real services.
     """
     return "sqlite:///:memory:"
 
@@ -81,10 +79,10 @@ def mock_settings(monkeypatch):
     monkeypatch.setenv("DB_USER", "test_user")
     monkeypatch.setenv("DB_PASSWORD", "test_pass")
     monkeypatch.setenv("DB_NAME", "test_db")
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
     monkeypatch.setenv("MODEL_NAME", "test_model")
     monkeypatch.setenv("WECOM_WEBHOOK_URL", "https://qyapi.weixin.qq.com/test")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
-    
-    from app.config.settings import Settings
+
+    from app.core.settings import Settings
     return Settings()

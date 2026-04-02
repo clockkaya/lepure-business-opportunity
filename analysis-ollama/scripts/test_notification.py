@@ -9,8 +9,8 @@ import os
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app.services.notification_service import NotificationService
-from app.config.settings import settings
+from app.services.wecom_notifier import WecomNotifier
+from app.core.settings import settings
 from loguru import logger
 
 def main():

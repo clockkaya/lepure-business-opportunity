@@ -10,7 +10,7 @@ import os
 # 添加父目录到路径以便导入配置
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.config.settings import settings
+from app.core.settings import settings
 
 def check_database():
     """检查数据库记录"""

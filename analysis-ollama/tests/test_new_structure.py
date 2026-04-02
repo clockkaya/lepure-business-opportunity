@@ -8,7 +8,7 @@ import pytest
 
 def test_config_imports():
     """测试配置层导入"""
-    from app.config.settings import Settings
+    from app.core.settings import Settings
     assert Settings is not None
 
 
@@ -22,19 +22,19 @@ def test_models_imports():
 
 def test_services_imports():
     """测试服务层导入"""
-    from app.services.rss_service import RSSService
-    from app.services.llm_service import LLMService
-    from app.services.notification_service import NotificationService
-    assert RSSService is not None
-    assert LLMService is not None
-    assert NotificationService is not None
+    from app.services.rss_fetcher import RSSFetcher
+    from app.services.llm_analyzer import LLMAnalyzer
+    from app.services.wecom_notifier import WecomNotifier
+    assert RSSFetcher is not None
+    assert LLMAnalyzer is not None
+    assert WecomNotifier is not None
 
 
-def test_utils_imports():
-    """测试工具层导入"""
-    from app.utils.logger import setup_logging, get_logger
-    from app.utils.html_parser import clean_html
-    from app.utils.db_utils import create_db_engine, check_db_health
+def test_core_imports():
+    """测试核心层导入"""
+    from app.core.logging import setup_logging, get_logger
+    from app.utils.html_cleaner import clean_html
+    from app.core.database import create_db_engine, check_db_health
     assert setup_logging is not None
     assert get_logger is not None
     assert clean_html is not None
@@ -42,9 +42,9 @@ def test_utils_imports():
     assert check_db_health is not None
 
 
-def test_html_parser():
-    """测试 HTML 解析器"""
-    from app.utils.html_parser import clean_html
+def test_html_cleaner():
+    """测试 HTML 清洗器"""
+    from app.utils.html_cleaner import clean_html
 
     html = "<div><p>测试内容</p><script>alert('test')</script></div>"
     result = clean_html(html)
@@ -54,30 +54,29 @@ def test_html_parser():
     assert "alert" not in result
 
 
-def test_rss_service_initialization():
-    """测试 RSS 服务初始化"""
-    from app.services.rss_service import RSSService
+def test_rss_fetcher_initialization():
+    """测试 RSS 采集器初始化"""
+    from app.services.rss_fetcher import RSSFetcher
 
-    service = RSSService("http://localhost:4000", "test_auth")
-    assert service.wewe_rss_url == "http://localhost:4000"
-    assert service.auth_code == "test_auth"
-
-
-def test_llm_service_initialization():
-    """测试 LLM 服务初始化"""
-    from app.services.llm_service import LLMService
-
-    service = LLMService("http://localhost:11434", "test_model")
-    assert service.ollama_base_url == "http://localhost:11434"
-    assert service.model_name == "test_model"
+    fetcher = RSSFetcher("http://localhost:4000", "test_auth")
+    assert fetcher.wewe_rss_url == "http://localhost:4000"
+    assert fetcher.auth_code == "test_auth"
 
 
-def test_notification_service_initialization():
-    """测试通知服务初始化"""
-    from app.services.notification_service import NotificationService
+def test_llm_analyzer_initialization():
+    """测试 LLM 分析器初始化"""
+    from app.services.llm_analyzer import LLMAnalyzer
 
-    service = NotificationService("https://qyapi.weixin.qq.com/test")
-    assert service.webhook_url == "https://qyapi.weixin.qq.com/test"
+    analyzer = LLMAnalyzer("deepseek-r1:32b")
+    assert analyzer.default_model == "deepseek-r1:32b"
+
+
+def test_wecom_notifier_initialization():
+    """测试通知器初始化"""
+    from app.services.wecom_notifier import WecomNotifier
+
+    notifier = WecomNotifier("https://qyapi.weixin.qq.com/test")
+    assert notifier.webhook_url == "https://qyapi.weixin.qq.com/test"
 
 
 if __name__ == "__main__":
