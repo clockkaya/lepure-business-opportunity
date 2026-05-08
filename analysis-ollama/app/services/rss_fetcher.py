@@ -124,6 +124,8 @@ class RSSFetcher:
             link_node = entry.find('atom:link', namespace)
             guid_node = entry.find('atom:id', namespace)
             pub_node = entry.find('atom:published', namespace)
+            if pub_node is None:
+                pub_node = entry.find('atom:updated', namespace)
             content_node = entry.find('atom:content', namespace)
 
             if title_node is None or link_node is None or guid_node is None:
@@ -140,7 +142,7 @@ class RSSFetcher:
             except Exception:
                 pub_date = datetime.now(timezone.utc)
                 # 使用 debug 级别，避免大量不规范 RSS 的干扰
-                logger.debug(f"无法解析发布日期: {title}，已使用当前时间")
+                logger.debug(f"无法解析发布日期: {title}，来源文本: {published}，已使用当前时间")
 
             html_content = content_node.text if content_node is not None else ""
 

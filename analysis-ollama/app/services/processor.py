@@ -72,6 +72,9 @@ class ArticleProcessor:
                 logger.info("未从 RSS feed 获取到文章")
                 return
 
+            # 初始化批处理通知列表
+            notifications = []
+
             # 步骤 2: 处理每篇文章
             for item in articles:
                 try:
@@ -128,13 +131,13 @@ class ArticleProcessor:
                             extracted_data.get('summary', '')
                         )
 
-                        # 步骤 2f: 发送通知（仅当 company_name 存在时）
+                        # 步骤 2f: 将通知数据加入批处理列表（仅当 company_name 存在时）
                         if extracted_data.get('company_name'):
-                            self.wecom_notifier.send_message(
-                                extracted_data,
-                                item['title'],
-                                item['url']
-                            )
+                            notifications.append({
+                                'report_data': extracted_data,
+                                'article_title': item['title'],
+                                'article_url': item['url']
+                            })
                         else:
                             logger.info("未找到 company_name，跳过企业微信通知以避免噪音")
                     else:
@@ -152,6 +155,11 @@ class ArticleProcessor:
                     )
                     session.rollback()
                     continue
+
+            # 步骤 3: 如果有收集到的需要通知的数据，则批量发送企业微信通知
+            if notifications:
+                logger.info(f"本轮处理结束，开始批量发送 {len(notifications)} 条企微通知")
+                self.wecom_notifier.send_batch_message(notifications)
 
         except Exception as e:
             session.rollback()

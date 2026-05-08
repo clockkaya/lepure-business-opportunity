@@ -71,7 +71,7 @@ services:
   agent:
     build:
       context: ./analysis-ollama
-    image: lepure/analysis-ollama:0.0.1
+    image: lepure/analysis-ollama:1.0.0
     container_name: opportunity-agent
     restart: unless-stopped
     environment:
